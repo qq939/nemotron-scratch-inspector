@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Nemotron Scratch Inspector · 图文检测</title>
+<link rel="stylesheet" href="/static/app.css" />
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <span class="logo">🔬</span>
+    <span class="title">Nemotron Scratch Inspector</span>
+    <span class="sub">port 8082 · 文本+图片 划痕检测</span>
+  </div>
+  <div class="actions">
+    <button id="btnClear" type="button" title="清空对话">🧹 清空</button>
+    <button id="btnSample" type="button" title="加载演示图">🖼 演示图</button>
+    <a href="/health" target="_blank" class="link">/health</a>
+  </div>
+</header>
+
+<details class="usage" id="usagePanel">
+  <summary>Usage · API 调用方法 &amp; curl 示例</summary>
+  <div class="usage-body">
+    <h4>1) <code>POST /nemtron</code> — JSON 图文检测（推荐）</h4>
+    <pre><code>curl -X POST http://localhost:8082/nemtron \
+  -H 'Content-Type: application/json' \
+  -d '{"q":"请检测图片中的划痕","img":"&lt;base64&gt;"}'</code></pre>
+
+    <h4>2) <code>GET /nemtron?q=&lt;text&gt;&amp;img=&lt;base64&gt;</code> — URL 形式</h4>
+    <pre><code>curl "http://localhost:8082/nemtron?q=检查划痕&amp;img=$(base64 -w0 sample.jpg)" \
+  -o out.bin
+
+# 只取 JSON
+curl "http://localhost:8082/nemtron?q=检查划痕&amp;img=...&amp;format=json"</code></pre>
+
+    <h4>3) 用 <code>@file</code> 绕开 shell ARG_MAX</h4>
+    <pre><code>python3 -c '
+import base64, json, pathlib
+payload = {"q":"检测划痕", "img": base64.b64encode(pathlib.Path("sample.jpg").read_bytes()).decode()}
+open("/tmp/req.json","w").write(json.dumps(payload))
+'
+curl -X POST http://localhost:8082/nemtron \
+  -H 'Content-Type: application/json' \
+  --data-binary @/tmp/req.json -o out.bin</code></pre>
+
+    <h4>4) 响应格式</h4>
+    <pre><code># GET 默认 multipart/mixed：先 JSON 再 PNG，curl -o out.bin 一把拿全
+# POST 或 ?format=json：纯 JSON（json.base64_png 在 png_base64 字段）
+
+{
+  "ok": true,
+  "intent": "scratch",
+  "score": 0.87,
+  "model": "nvidia/Nemotron-3-Embed-1B-BF16",
+  "img_w": 800, "img_h": 600,
+  "regions": [
+    {"id":0,"x":120,"y":45,"w":80,"h":22,"score":0.92,
+     "severity":"high","label":"scratch"}
+  ],
+  "summary": {"total":3,"high":1,"medium":1,"low":1},
+  "png_base64": "&lt;base64 PNG&gt;"
+}</code></pre>
+
+    <p class="usage-foot">
+      文本侧用 Nemotron-3-Embed-1B-BF16（SentenceTransformers + PyTorch CPU）解析意图；
+      图像侧用 NumPy/Pillow 做边缘 + 连通区域检测。详见 <code>README.md</code>。
+    </p>
+  </div>
+</details>
+
+<main id="chat" class="chat" aria-live="polite"></main>
+
+<section class="composer" aria-label="消息输入">
+  <div id="attachPreview" class="attach-preview" hidden>
+    <img id="attachThumb" alt="附件缩略图" />
+    <span id="attachName" class="attach-name"></span>
+    <button id="btnRemoveAttach" type="button" class="x" title="移除附件">×</button>
+  </div>
+  <div class="row">
+    <textarea
+      id="input"
+      rows="2"
+      placeholder="描述要检测的内容，例如「请检测图片中的划痕」…Enter 发送，Shift+Enter 换行；可粘贴图片。"
+      aria-label="消息文本"></textarea>
+    <div class="btns">
+      <button id="btnUpload" type="button" title="上传本地图片">📎 图片</button>
+      <input id="filePicker" type="file" accept="image/*" hidden />
+      <button id="btnSend" type="button" class="primary" title="发送 (Enter)">检测 ⏎</button>
+    </div>
+  </div>
+  <div id="status" class="status" role="status"></div>
+</section>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

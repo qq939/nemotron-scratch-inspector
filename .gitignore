@@ -1,0 +1,25 @@
+logs/
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+.env
+uploads/
+tmp/
+work/
+models/
+checkpoints/
+*.bin
+*.safetensors
+*.pt
+*.pth
+node_modules/
+dist/
+build/
+.vscode/
+.idea/
+
+# Runtime / pid / ephemeral
+.server.pid
+test_sync.txt
+sessions/
